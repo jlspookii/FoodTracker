@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Omni-Ledger Pro + Cam Toggle</title>
+    <style>
+        :root { --primary: #2563eb; --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --danger: #ef4444; --success: #10b981; }
+        body { font-family: -apple-system, system-ui, sans-serif; background: var(--bg); color: white; margin: 0; padding: 15px; overflow-x: hidden; touch-action: pan-y; }
+        .container { max-width: 500px; margin: auto; }
+        
+        /* Camera Controls */
+        .cam-controls { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+        .toggle-btn { background: #334155; border: 1px solid var(--accent); color: var(--accent); padding: 6px 12px; border-radius: 20px; font-size: 0.7rem; font-weight: bold; cursor: pointer; }
+        .toggle-btn.off { border-color: var(--danger); color: var(--danger); }
+
+        #viewfinder-container { position: relative; width: 100%; border-radius: 20px; overflow: hidden; background: #000; aspect-ratio: 1; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        #viewfinder { width: 100%; height: 100%; object-fit: cover; }
+        
+        .shutter-container { display: flex; justify-content: center; padding: 20px 0; }
+        .shutter-btn { width: 70px; height: 70px; background: white; border: 5px solid var(--primary); border-radius: 50%; cursor: pointer; transition: transform 0.1s; }
+        .shutter-btn:active { transform: scale(0.9); }
+
+        .section-header { font-size: 0.8rem; color: var(--accent); text-transform: uppercase; letter-spacing: 1.5px; margin: 25px 0 10px 5px; border-bottom: 1px solid #334155; padding-bottom: 5px; }
+
+        .ledger-item-container { position: relative; overflow: hidden; margin-bottom: 12px; border-radius: 12px; }
+        .delete-bg { position: absolute; right: 0; top: 0; bottom: 0; width: 100%; background: var(--danger); display: flex; align-items: center; justify-content: flex-end; padding-right: 20px; font-weight: bold; color: white; border-radius: 12px; }
+        
+        .ledger-item { position: relative; display: flex; background: var(--card); padding: 12px; transition: transform 0.2s ease-out; z-index: 2; border-radius: 12px; border-left: 4px solid transparent; }
+        .ledger-item.urgent { border-left-color: var(--danger); }
+        
+        .ledger-photo { width: 85px; height: 85px; border-radius: 8px; object-fit: cover; margin-right: 12px; border: 1px solid #334155; }
+        .ledger-info { flex: 1; min-width: 0; }
+        
+        .tag-row { display: flex; gap: 5px; margin-bottom: 8px; }
+        .tag { font-size: 0.6rem; padding: 4px 8px; border-radius: 4px; background: #334155; color: #94a3b8; cursor: pointer; font-weight: bold; }
+        .tag.active { background: var(--accent); color: var(--bg); }
+
+        .qty-row { display: flex; align-items: center; gap: 10px; margin: 5px 0; }
+        .qty-btn { background: #475569; border: none; color: white; width: 24px; height: 24px; border-radius: 4px; font-weight: bold; cursor: pointer; }
+        .qty-val { font-weight: bold; font-size: 0.9rem; }
+
+        .meta-text { font-size: 0.7rem; color: #64748b; display: block; margin-bottom: 4px; }
+        .countdown-timer { font-family: monospace; font-size: 0.85rem; color: var(--success); font-weight: bold; }
+        .urgent .countdown-timer { color: var(--danger); animation: pulse 1s infinite; }
+
+        .exp-row { display: flex; gap: 4px; margin-top: 8px; }
+        .exp-btn { font-size: 0.6rem; padding: 4px 8px; border-radius: 4px; background: #1e293b; color: #94a3b8; border: 1px solid #475569; cursor: pointer; }
+
+        .action-group { display: flex; gap: 10px; margin-top: 30px; padding-bottom: 50px; }
+        .btn-sec { flex: 1; background: #334155; color: white; border: none; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="cam-controls">
+        <button id="cam-toggle" class="toggle-btn" onclick="toggleCamera()">CAMERA: ON</button>
+    </div>
+    
+    <div id="viewfinder-container">
+        <video id="viewfinder" autoplay playsinline></video>
+    </div>
+
+    <div class="shutter-container">
+        <button class="shutter-btn" onclick="snap()"></button>
+    </div>
+
+    <div class="section-header">🧊 Fridge</div>
+    <div id="list-Fridge"></div>
+
+    <div class="section-header">🏠 Living Room</div>
+    <div id="list-Living"></div>
+
+    <div class="action-group">
+        <button class="btn-sec" onclick="exportCSV()">📊 Export CSV</button>
+        <button class="btn-sec" onclick="clearData()">🗑️ Reset All</button>
+    </div>
+</div>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script>
+    const video = document.getElementById('viewfinder');
+    const canvas = document.getElementById('canvas');
+    const camBtn = document.getElementById('cam-toggle');
+    let db = JSON.parse(localStorage.getItem('omniLedgerV4')) || [];
+    let stream = null;
+
+    // Camera Logic
+    async function startCamera() {
+        try {
+            stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            camBtn.innerText = "CAMERA: ON";
+            camBtn.classList.remove('off');
+        } catch (err) {
+            console.error("Camera error:", err);
+            camBtn.innerText = "CAMERA: ERROR";
+        }
+    }
+
+    function stopCamera() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            video.srcObject = null;
+            camBtn.innerText = "CAMERA: OFF";
+            camBtn.classList.add('off');
+            stream = null;
+        }
+    }
+
+    function toggleCamera() {
+        if (stream) stopCamera();
+        else startCamera();
+    }
+
+    // Initialize
+    startCamera();
+    render();
+    setInterval(updateTimers, 1000);
+
+    function snap() {
+        if (!stream) { alert("Turn camera on first!"); return; }
+        canvas.width = 300; canvas.height = 300;
+        const ctx = canvas.getContext('2d');
+        const dim = Math.min(video.videoWidth, video.videoHeight);
+        ctx.drawImage(video, (video.videoWidth-dim)/2, (video.videoHeight-dim)/2, dim, dim, 0, 0, 300, 300);
+        
+        const now = new Date();
+        const entry = {
+            id: Date.now(),
+            photo: canvas.toDataURL('image/jpeg', 0.6),
+            loc: 'Fridge',
+            qty: 1,
+            purchaseDate: now.toLocaleDateString('en-HK'),
+            expiresAt: Date.now() + (7 * 24 * 60 * 60 * 1000)
+        };
+        db.unshift(entry);
+        save();
+    }
+
+    function changeQty(id, delta) {
+        const item = db.find(i => i.id === id);
+        if(item) item.qty = Math.max(1, item.qty + delta);
+        save();
+    }
+
+    function setExpiry(id, days) {
+        const item = db.find(i => i.id === id);
+        if(item) item.expiresAt = Date.now() + (days * 24 * 60 * 60 * 1000);
+        save();
+    }
+
+    function toggleLoc(id, loc) {
+        const item = db.find(i => i.id === id);
+        if(item) item.loc = loc;
+        save();
+    }
+
+    function save() {
+        localStorage.setItem('omniLedgerV4', JSON.stringify(db));
+        render();
+    }
+
+    function updateTimers() {
+        db.forEach(item => {
+            const timerEl = document.getElementById(`timer-${item.id}`);
+            if (!timerEl) return;
+            const diff = item.expiresAt - Date.now();
+            if (diff <= 0) { timerEl.innerText = "EXPIRED"; return; }
+            const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+            const h = Math.floor((diff / (1000 * 60 * 60)) % 24);
+            const m = Math.floor((diff / (1000 * 60)) % 60);
+            const s = Math.floor((diff / 1000) % 60);
+            timerEl.innerText = `${d}d ${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        });
+    }
+
+    function render() {
+        const containers = { 'Fridge': document.getElementById('list-Fridge'), 'Living': document.getElementById('list-Living') };
+        containers['Fridge'].innerHTML = '';
+        containers['Living'].innerHTML = '';
+
+        db.forEach(item => {
+            const diff = item.expiresAt - Date.now();
+            const isUrgent = diff < (2 * 24 * 60 * 60 * 1000);
+            
+            const html = `
+                <div class="ledger-item-container">
+                    <div class="delete-bg">REMOVE</div>
+                    <div class="ledger-item ${isUrgent ? 'urgent' : ''}" id="item-${item.id}"
+                         ontouchstart="ts(event)" ontouchmove="tm(event, ${item.id})" ontouchend="te(event, ${item.id})">
+                        <img src="${item.photo}" class="ledger-photo">
+                        <div class="ledger-info">
+                            <div class="tag-row">
+                                <div class="tag ${item.loc === 'Fridge' ? 'active' : ''}" onclick="toggleLoc(${item.id}, 'Fridge')">FRIDGE</div>
+                                <div class="tag ${item.loc === 'Living' ? 'active' : ''}" onclick="toggleLoc(${item.id}, 'Living')">LIVING</div>
+                            </div>
+                            <span class="meta-text">Bought: ${item.purchaseDate}</span>
+                            <div class="qty-row">
+                                <button class="qty-btn" onclick="changeQty(${item.id}, -1)">-</button>
+                                <span class="qty-val">${item.qty}</span>
+                                <button class="qty-btn" onclick="changeQty(${item.id}, 1)">+</button>
+                            </div>
+                            <div class="countdown-timer" id="timer-${item.id}">...</div>
+                            <div class="exp-row">
+                                <button class="exp-btn" onclick="setExpiry(${item.id}, 3)">3D</button>
+                                <button class="exp-btn" onclick="setExpiry(${item.id}, 7)">7D</button>
+                                <button class="exp-btn" onclick="setExpiry(${item.id}, 14)">14D</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            containers[item.loc].insertAdjacentHTML('beforeend', html);
+        });
+        updateTimers();
+    }
+
+    function exportCSV() {
+        let csv = "ID,Date,Location,Qty,DaysLeft\n";
+        db.forEach(i => csv += `${i.id},${i.purchaseDate},${i.loc},${i.qty},${Math.ceil((i.expiresAt-Date.now())/(1000*60*60*24))}\n`);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        a.download = `Ledger_Pro.csv`;
+        a.click();
+    }
+
+    function clearData() { if(confirm("Wipe all data?")) { db = []; save(); } }
+
+    let sx = 0, cx = 0;
+    function ts(e) { sx = e.touches[0].clientX; }
+    function tm(e, id) {
+        cx = e.touches[0].clientX - sx;
+        if (cx < 0) document.getElementById(`item-${id}`).style.transform = `translateX(${cx}px)`;
+    }
+    function te(e, id) {
+        const el = document.getElementById(`item-${id}`);
+        if (cx < -140) {
+            el.style.transform = `translateX(-100%)`;
+            setTimeout(() => { db = db.filter(i => i.id !== id); save(); }, 200);
+        } else { el.style.transform = `translateX(0)`; }
+        cx = 0;
+    }
+</script>
+</body>
+</html>
