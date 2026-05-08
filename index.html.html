@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Omni-Ledger Pro</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+    <link rel="apple-touch-icon" href="https://via.placeholder.com/192x192/2563eb/ffffff?text=LP">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1 class="main-title">Omni-Ledger Pro</h1>
+
+    <div class="cam-controls">
+        <button id="cam-toggle" class="toggle-btn" onclick="toggleCamera()">CAMERA: ON</button>
+    </div>
+    
+    <div id="viewfinder-container">
+        <video id="viewfinder" autoplay playsinline></video>
+    </div>
+
+    <div class="shutter-container">
+        <button class="shutter-btn" onclick="snap()"></button>
+    </div>
+
+    <div class="section-header">🧊 Fridge</div>
+    <div id="list-Fridge"></div>
+
+    <div class="section-header">🏠 Living Room</div>
+    <div id="list-Living"></div>
+
+    <div class="action-group">
+        <button class="btn-sec" onclick="exportCSV()">📊 Export CSV</button>
+        <button class="btn-sec" onclick="clearData()">🗑️ Reset All</button>
+    </div>
+</div>
+
+<canvas id="canvas" style="display:none;"></canvas>
+
+<script src="script.js"></script>
+</body>
+</html>

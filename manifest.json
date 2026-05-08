@@ -1,0 +1,12 @@
+{
+  "short_name": "LedgerPro",
+  "name": "Omni-Ledger Pro Pantry",
+  "icons": [
+    { "src": "https://via.placeholder.com/192x192/2563eb/ffffff?text=LP", "type": "image/png", "sizes": "192x192" },
+    { "src": "https://via.placeholder.com/512x512/2563eb/ffffff?text=LedgerPro", "type": "image/png", "sizes": "512x512" }
+  ],
+  "start_url": "./index.html",
+  "background_color": "#0f172a",
+  "display": "standalone",
+  "theme_color": "#2563eb"
+}
