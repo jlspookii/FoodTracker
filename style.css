@@ -16,6 +16,16 @@ body {
     margin: 10px 0 20px 0; text-transform: uppercase; letter-spacing: -0.5px;
 }
 
+.subtitle {
+    text-align: center;
+    color: #94a3b8; /* A soft slate gray */
+    font-size: 0.9rem;
+    margin-top: -15px; /* Pulls it closer to the title */
+    margin-bottom: 25px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
 .cam-controls { display: flex; justify-content: flex-end; margin-bottom: 10px; }
 .toggle-btn { 
     background: #334155; border: 1px solid var(--accent); color: var(--accent); 
