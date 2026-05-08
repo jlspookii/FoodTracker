@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ledger-pro-v2';
+const CACHE_NAME = 'Little Food Tracker';
 const ASSETS = ['./', './index.html', './style.css', './script.js', './manifest.json'];
 
 self.addEventListener('install', e => {
